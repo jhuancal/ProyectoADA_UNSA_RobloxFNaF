@@ -1,4 +1,4 @@
-# 🕹️ 5D Multiverse FNAF Engine — Proyecto ADA (UNSA)
+# 🕹️ FNAF Engine — Proyecto ADA (UNSA)
 
 [![Roblox Luau](https://img.shields.io/badge/Language-Luau-00A2FF?logo=roblox&logoColor=white)](https://luau.org/)
 [![Course](https://img.shields.io/badge/Curso-Análisis_y_Diseño_de_Algoritmos-red)](https://epis.unsa.edu.pe/)
@@ -12,26 +12,14 @@ Este proyecto fue concebido para la aplicación práctica de **estructuras de da
 
 ## 📌 Características Principales y Algoritmos
 
-1. **Relojes Vectoriales y de Lamport (`VectorClock.luau`)**
-   - Rastreo de causalidad entre múltiples líneas temporales concurrentes ($L_0, L_1, \dots$) sin depender de un reloj físico global.
-   - Evaluación en tiempo constante $O(1)$ y $O(|L|)$ de relaciones causales (*happens-before* $A \to B$ y concurrencia $A \parallel B$).
-
-2. **Árbol de Multiversos DAG (`TimelineTree.luau`)**
-   - Grafo acíclico dirigido que modela las ramificaciones en el tiempo generadas por eventos o paradojas temporales.
-   - Avance temporal desacoplado y evaluación dinámica de la línea más vulnerable.
-
-3. **Propagación del "Efecto Mariposa" con Kahn (`CausalGraph.luau`)**
-   - Algoritmo de **Ordenamiento Topológico de Kahn** para resolver dependencias causales acíclicas.
-   - Cuando un evento modifica el pasado (ej. sabotaje de Chica), los efectos energéticos se propagan ordenadamente hacia todas las líneas descendientes.
-
-4. **Búsqueda Heurística $A^*$ Espacio-Temporal (`SpaceTimeAStar.luau`)**
+1. **Búsqueda Heurística $A^*$ Espacio-Temporal (`SpaceTimeAStar.luau`)**
    - Planificación de rutas en 4 dimensiones $(x, y, t, L)$ para los animatrónicos.
    - Asistido por una cola de prioridad basada en un **Min-Heap Binario** y precomputación de distancias mínimas mediante **BFS** en el grafo del restaurante (`MapGraph.luau`).
 
-5. **Snapshots Inmutables con Structural Sharing (`SnapshotManager.luau`)**
+2. **Snapshots Inmutables con Structural Sharing (`SnapshotManager.luau`)**
    - Registro de deltas incrementales (*Event Sourcing*), reduciendo la complejidad espacial a $O(E)$ en lugar de clonar el estado completo $O(|V| \cdot T \cdot |L|)$.
 
-6. **Integración 2D y 3D en Tiempo Real**
+3. **Integración 2D y 3D en Tiempo Real**
    - **`MultiverseDebugGui`:** Panel de depuración interactivo 2D para inspeccionar el grafo espacial, los estados de energía y el árbol de multiversos.
    - **`Map3DCameraController` & `MAP3D_SYNC_V2`:** Sincronización del estado lógico con los modelos 3D físicos (`AnimatronicModels`) y sistema de cámaras de seguridad 3D (`[C]`, `[Q]`, `[E]`).
 
