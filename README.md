@@ -40,11 +40,19 @@ Este proyecto fue concebido para la aplicación práctica de **estructuras de da
 ## 📂 Estructura del Repositorio
 
 ```text
+├── places/                       # Copias de seguridad completas de Roblox Studio (.rbxl)
+│   └── README.md
+│
+├── assets/                       # Modelos 3D exportados modularmente (.rbxm / .rbxmx)
+│   └── README.md
+│
 ├── documents/
 │   ├── ExplicacionArchivox.md    # Inventario exhaustivo y documentación línea por línea
 │   └── Images/                   # Mapas e íconos de referencia (Maps.jpg, Icons.jpg)
 │
-├── src/
+├── src/                          # Reflejo 1:1 del DataModel de Roblox Studio
+│   ├── Workspace/                # Scripts y objetos dentro de Workspace
+│   ├── Lighting/                 # Configuraciones de atmósfera y post-procesado
 │   ├── ReplicatedStorage/
 │   │   └── Shared/               # Módulos compartidos cliente-servidor (MapGraph, Protocolo, VectorClock)
 │   ├── ServerScriptService/
@@ -56,12 +64,14 @@ Este proyecto fue concebido para la aplicación práctica de **estructuras de da
 │   │       ├── Bonnie.luau       # Poda de candidatos y ruta por Pasillo Izquierdo
 │   │       ├── Chica.luau        # Sabotaje causal y ruta por Baños / Pasillo Derecho
 │   │       └── Foxy.luau         # Salto interdimensional y sprint
+│   ├── ServerStorage/            # Módulos y respaldos del servidor
 │   ├── StarterGui/
 │   │   └── LobbyGui/             # Interfaz del Lobby y botón de inicio
-│   └── StarterPlayerScripts/
-│       ├── ClientScenarioReplica.client.luau
-│       ├── Map3DCameraController.client.luau   # Control de cámaras 3D y puertas
-│       └── MultiverseDebugGui.client.luau      # Radar táctico y panel de control 5D
+│   └── StarterPlayer/
+│       └── StarterPlayerScripts/ # Scripts de cliente
+│           ├── ClientScenarioReplica.client.luau
+│           ├── Map3DCameraController.client.luau   # Control de cámaras 3D y puertas
+│           └── MultiverseDebugGui.client.luau      # Radar táctico y panel de control 5D
 │
 └── README.md
 ```
