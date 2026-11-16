@@ -18,12 +18,11 @@ local NetworkProtocol = require(Shared:WaitForChild("NetworkProtocol"))
 local Modules = ServerScriptService:WaitForChild("Modules")
 local Core = Modules:WaitForChild("Core")
 local GameSession = require(Core:WaitForChild("GameSession"))
-local DebugBridge = require(Modules:WaitForChild("Debug"):WaitForChild("DebugBridge"))
+local PlayerActionHandler = require(Core:WaitForChild("PlayerActionHandler"))
 
 -- 1. Inicializar los RemoteEvents y la Sesión encapsulada en estado LOBBY
 local remotos = NetworkProtocol.obtenerRemotos()
 local sesionActual = GameSession.new()
-DebugBridge.conectarSesion(sesionActual)
 
 print("================================================================================")
 print("  [LOBBY] Servidor Multiverso 5D listo.")
@@ -53,22 +52,5 @@ end)
 
 -- 4. Escuchar acciones del jugador en el grafo 2D (movimiento y tácticas de puertas)
 remotos.RequestPlayerAction.OnServerEvent:Connect(function(player: Player, accion: any)
-    if type(accion) ~= "table" then return end
-    if accion.tipo == "MOVER_JUGADOR" and type(accion.nodo) == "string" then
-        if sesionActual.guardiaAlfa then
-            local nodoPrevio = sesionActual.guardiaAlfa.nodoActual
-            sesionActual.guardiaAlfa.nodoActual = accion.nodo
-            if type(accion.gx) == "number" and type(accion.gy) == "number" then
-                sesionActual.guardiaAlfa.gx = accion.gx
-                sesionActual.guardiaAlfa.gy = accion.gy
-            end
-            print(string.format("  [SERVIDOR - JUGADOR %s] Movimiento en mapa 2D: %s -> %s (%s, %s)", player.Name, nodoPrevio, accion.nodo, tostring(accion.gx or "-"), tostring(accion.gy or "-")))
-        end
-    elseif accion.tipo == "ALTERNAR_PUERTA" and type(accion.lado) == "string" then
-        local lado = accion.lado :: "Izquierda" | "Derecha"
-        local cerrada = accion.cerrada :: boolean?
-        local lineaId = accion.lineaId :: string?
-        local exito = sesionActual:alternarPuerta(lado, cerrada, lineaId)
-        print(string.format("  [SERVIDOR - PUERTA] %s solicitó alternar puerta %s (resultado: %s)", player.Name, lado, tostring(exito)))
-    end
+    PlayerActionHandler.procesar(player, sesionActual, accion)
 end)

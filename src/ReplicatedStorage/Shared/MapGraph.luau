@@ -5,7 +5,7 @@
     Propósito (ADA - Teoría de Grafos y Precomputación BFS):
     Define el grafo espacial del restaurante (9 nodos, incluyendo 'FuenteEnergia').
     - El nodo especial 'Oficina' mantiene su restricción de grado 2 (solo conecta con PasilloIzquierdo y PasilloDerecho).
-    - El nodo 'FuenteEnergia' conecta con Backstage y PasilloIzquierdo.
+    - El nodo 'FuenteEnergia' conecta únicamente con PasilloIzquierdo.
     - Soporta aristas dinámicas (puertas funcionales): cuando la puerta izquierda o derecha está cerrada,
       la arista entre la Oficina y el pasillo correspondiente se elimina temporalmente del grafo.
     - Precomputa la matriz de distancias mínimas con BFS para servir como heurística O(1) admisible en A*.
@@ -19,6 +19,8 @@ export type MapGraphType = {
     distanciasMinimas: { [string]: { [string]: number } },
     aristasBloqueadas: { [string]: boolean },
     obtenerVecinos: (self: MapGraphType, nodo: string, estadoEscenario: any?) -> { string },
+    obtenerVecinosSinFiltro: (self: MapGraphType, nodo: string) -> { string },
+    validarSimetria: (self: MapGraphType) -> (),
     estanConectados: (self: MapGraphType, nodoA: string, nodoB: string, estadoEscenario: any?) -> boolean,
     aristaEstaBloqueada: (self: MapGraphType, nodoA: string, nodoB: string, estadoEscenario: any?) -> boolean,
     bloquearArista: (self: MapGraphType, nodoA: string, nodoB: string) -> (),
@@ -44,9 +46,28 @@ function MapGraph.new(): MapGraphType
 
     self.aristasBloqueadas = {}
     self.distanciasMinimas = {}
+    self:validarSimetria()
     self:_precomputarDistanciasBFS()
 
     return (self :: any) :: MapGraphType
+end
+
+-- Verifica al cargar que toda arista (u -> v) tenga su recíproca (v -> u)
+function MapGraph:validarSimetria()
+    for u, vecinos in pairs(self.nodos) do
+        for _, v in ipairs(vecinos) do
+            local rev = self.nodos[v]
+            assert(rev ~= nil, string.format("[MapGraph] El nodo destino '%s' (referenciado por '%s') no existe.", v, u))
+            local encontrado = false
+            for _, w in ipairs(rev) do
+                if w == u then
+                    encontrado = true
+                    break
+                end
+            end
+            assert(encontrado, string.format("[MapGraph] Falta arista recíproca: '%s' -> '%s' existe, pero '%s' -> '%s' no.", u, v, v, u))
+        end
+    end
 end
 
 function MapGraph:_precomputarDistanciasBFS()
@@ -121,6 +142,13 @@ function MapGraph:obtenerVecinos(nodo: string, estadoEscenario: any?): { string 
         end
     end
     return vecinosFiltrados
+end
+
+-- Retorna todos los vecinos topológicos de un nodo sin filtrar por puertas cerradas
+function MapGraph:obtenerVecinosSinFiltro(nodo: string): { string }
+    local listaBase = self.nodos[nodo]
+    if not listaBase then return {} end
+    return table.clone(listaBase)
 end
 
 -- Retorna si dos nodos están conectados considerando puertas cerradas

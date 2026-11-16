@@ -15,6 +15,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local AnimatronicConfig = require(Shared:WaitForChild("AnimatronicConfig"))
 local RoomSpaceConfig = require(Shared:WaitForChild("RoomSpaceConfig"))
 
 local TemporalEntity = require(script.Parent.Entities.TemporalEntity)
@@ -30,13 +31,14 @@ export type ContextoMultiverso = {
     snapshotManager: any,
     causalGraph: any,
     astar: any,
+    onAtraparJugador: ((atacante: string, linea: string, puerta: string) -> ())?,
 }
 
 function Animatronico.new(nombre: string, intervalo: number, nodoInicial: string, contexto: ContextoMultiverso)
     local self = TemporalEntity.new(nombre, nodoInicial, "L0")
     setmetatable(self, Animatronico)
 
-    self.enojo = 1 -- Inicializado en 1 para todos los animatrónicos
+    self.enojo = AnimatronicConfig.ENOJO_INICIAL -- Inicializado en 1 para todos los animatrónicos
     self.intervalo = intervalo -- Bonnie = 3s, Chica = 5s, Foxy = 7s
     self.estaActivo = false -- Flag de bloqueo mientras se desplaza o espera
     self.lugarDeOrigen = nodoInicial -- Nodo inicial para retorno tras bloqueo (Escenario o CuevaPirata)
@@ -49,6 +51,7 @@ function Animatronico.new(nombre: string, intervalo: number, nodoInicial: string
     self.snapshotManager = contexto.snapshotManager
     self.causalGraph = contexto.causalGraph
     self.astar = contexto.astar
+    self.onAtraparJugador = contexto.onAtraparJugador
     self.enEjecucion = false
     self.hiloReloj = nil :: thread?
 
@@ -83,7 +86,7 @@ function Animatronico:iniciarReloj()
                 continue
             end
 
-            local dado = math.random(1, 20)
+            local dado = math.random(1, AnimatronicConfig.DADO_MAX)
             print(string.format(
                 "  [%s | Escenario %s | Enojo: %d] Reloj (%ds): tirada = %d vs Enojo = %d",
                 self.nombre, self.lineaActual, self.enojo, self.intervalo, dado, self.enojo
@@ -133,7 +136,7 @@ function Animatronico:manejarBloqueoDePuerta(pasillo: string)
     end
 
     self.hiloEsperaPuerta = task.spawn(function()
-        SimClock.esperar(5)
+        SimClock.esperar(AnimatronicConfig.TIEMPO_ESPERA_PUERTA)
         if not self.enEjecucion then return end
 
         print(string.format(
@@ -177,22 +180,20 @@ function Animatronico:aumentarEnojo(cantidad: number)
     print(string.format("  >> [%s] Enojo incrementado en +%d -> Nivel actual: %d", self.nombre, cantidad, self.enojo))
 end
 
+-- Notifica al coordinador de sesión (GameSession) que este animatrónico atrapó al jugador
+function Animatronico:atraparJugador(puerta: string)
+    self.enEjecucion = false
+    self.estaActivo = false
+    self.esperandoEnPuerta = false
+    if self.onAtraparJugador then
+        self.onAtraparJugador(self.nombre, self.lineaActual, puerta)
+    end
+end
+
 -- Registra el cambio de ubicación en el SnapshotManager y actualiza el Reloj Vectorial de la línea actual
 function Animatronico:registrarMovimientoEnSnapshot(nuevoNodo: string, gx: number?, gy: number?)
     local nodoAnterior = self.nodoActual
     self.nodoActual = nuevoNodo
-    -- MAP3D_SYNC_V2: refleja el estado lógico en la representación física.
-    local mapa3D = workspace:FindFirstChild("MapBlockoutV2")
-    local modelos3D = workspace:FindFirstChild("AnimatronicModels")
-    if mapa3D and modelos3D then
-        local punto = mapa3D.MovementPoints:FindFirstChild(nuevoNodo)
-        local modelo = modelos3D:FindFirstChild(self.nombre)
-        if punto and modelo and modelo:IsA("Model") then
-            modelo:SetAttribute("CurrentNode", nuevoNodo)
-            modelo:SetAttribute("TimelineId", self.lineaActual)
-            modelo:PivotTo(CFrame.new(punto.Position + Vector3.new(0, 0.6, 0)))
-        end
-    end
 
     if gx and gy then
         self.gx = gx

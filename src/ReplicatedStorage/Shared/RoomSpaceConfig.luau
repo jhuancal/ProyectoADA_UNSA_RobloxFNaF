@@ -38,6 +38,8 @@ export type RoomConfig = {
     tieneCamara: boolean?,
 }
 
+local GridPathfinder = require(script.Parent:WaitForChild("GridPathfinder"))
+
 local RoomSpaceConfig = {}
 
 RoomSpaceConfig.GRID_COLS = 30
@@ -335,7 +337,7 @@ function RoomSpaceConfig.celdaANormalizadoEnSala(salaId: string, gx: number, gy:
     return u, v
 end
 
--- Pathfinding BFS 4-direccional (estilo Pac-Man) sobre la grilla 30x17
+-- Pathfinding A* Manhattan 4-direccional sobre la grilla 30x17 (delegado a GridPathfinder)
 function RoomSpaceConfig.encontrarCaminoPacMan(
     origenX: number,
     origenY: number,
@@ -343,66 +345,24 @@ function RoomSpaceConfig.encontrarCaminoPacMan(
     destinoY: number,
     estadoEscenario: any?
 ): { { x: number, y: number, sala: string? } }
-    if origenX == destinoX and origenY == destinoY then
-        return {}
-    end
-
-    local key = function(x: number, y: number): number
-        return y * 100 + x
-    end
-
-    local cola: { { x: number, y: number } } = { { x = origenX, y = origenY } }
-    local padre: { [number]: number } = {}
-    local visitado: { [number]: boolean } = {}
-    local kInicio = key(origenX, origenY)
-    visitado[kInicio] = true
-
-    local dirs = {
-        { dx = 0, dy = -1 },
-        { dx = 0, dy = 1 },
-        { dx = -1, dy = 0 },
-        { dx = 1, dy = 0 },
-    }
-
-    local encontrado = false
-    local head = 1
-    while head <= #cola do
-        local actual = cola[head]
-        head += 1
-
-        if actual.x == destinoX and actual.y == destinoY then
-            encontrado = true
-            break
+    local rutaBase = GridPathfinder.encontrarCamino(
+        origenX,
+        origenY,
+        destinoX,
+        destinoY,
+        function(nx: number, ny: number): boolean
+            return RoomSpaceConfig.celdaEsTransitable(nx, ny, estadoEscenario)
         end
-
-        for _, d in ipairs(dirs) do
-            local nx = actual.x + d.dx
-            local ny = actual.y + d.dy
-            local kn = key(nx, ny)
-            if not visitado[kn] and RoomSpaceConfig.celdaEsTransitable(nx, ny, estadoEscenario) then
-                visitado[kn] = true
-                padre[kn] = key(actual.x, actual.y)
-                table.insert(cola, { x = nx, y = ny })
-            end
-        end
-    end
-
-    if not encontrado then
-        return {}
-    end
+    )
 
     local camino: { { x: number, y: number, sala: string? } } = {}
-    local currK: number? = key(destinoX, destinoY)
-    while currK and currK ~= kInicio do
-        local cy = math.floor(currK / 100)
-        local cx = currK % 100
-        local celda = RoomSpaceConfig.obtenerCelda(cx, cy)
-        table.insert(camino, 1, {
-            x = cx,
-            y = cy,
+    for _, paso in ipairs(rutaBase) do
+        local celda = RoomSpaceConfig.obtenerCelda(paso.x, paso.y)
+        table.insert(camino, {
+            x = paso.x,
+            y = paso.y,
             sala = if celda then celda.sala else nil,
         })
-        currK = padre[currK]
     end
 
     return camino

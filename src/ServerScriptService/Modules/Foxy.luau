@@ -12,19 +12,22 @@
       nueva rama en TimelineTree.
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local AnimatronicConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AnimatronicConfig"))
 local Animatronico = require(script.Parent.Animatronico)
-local SimClock = require(script.Parent.Core:WaitForChild("SimClock"))
+
+local cfg = AnimatronicConfig.Foxy
 
 local Foxy = {}
 Foxy.__index = Foxy
 setmetatable(Foxy, { __index = Animatronico })
 
 function Foxy.new(contexto: Animatronico.ContextoMultiverso)
-    local self = Animatronico.new("Foxy", 7, "CuevaPirata", contexto)
+    local self = Animatronico.new(cfg.nombre, cfg.intervalo, cfg.nodoInicial, contexto)
     setmetatable(self, Foxy)
 
     self.fase = 1
-    self.maxLineasCreadas = 3 -- Límite de seguridad para no saturar escenarios
+    self.maxLineasCreadas = cfg.maxLineasCreadas -- Límite de seguridad para no saturar escenarios
     self.lineasCreadasPorFoxy = 0
     return self
 end
@@ -56,8 +59,8 @@ function Foxy:ejecutarAccion()
             local estadoActual = self.snapshotManager:obtenerEstadoPresente(self.lineaActual)
             local tActual = if estadoActual then estadoActual.tiempo else 0
 
-            if tActual >= 15 and (estadoActual.puertaIzquierdaCerrada or self.enojo >= 2) then
-                local tPasado = math.max(5, tActual - 12)
+            if tActual >= cfg.tiempoMinBifurcacion and (estadoActual.puertaIzquierdaCerrada or self.enojo >= 2) then
+                local tPasado = math.max(5, tActual - cfg.saltoPasadoSegundos)
                 self.lineasCreadasPorFoxy += 1
                 local nuevoEscenario = self.timelineTree:bifurcarLinea(
                     self.lineaActual,
@@ -73,7 +76,7 @@ function Foxy:ejecutarAccion()
             self.lineaActual
         ))
 
-        self:caminarHaciaSalaPacMan("Oficina", 0.16, function()
+        self:caminarHaciaSalaPacMan("Oficina", cfg.velocidadSprint, function()
             local estado = self.snapshotManager and self.snapshotManager:obtenerEstadoPresente(self.lineaActual)
             local puertaCerrada = estado and estado.puertaIzquierdaCerrada == true
 
@@ -84,13 +87,8 @@ function Foxy:ejecutarAccion()
                 ))
                 self:manejarBloqueoDePuerta("PasilloIzquierdo")
             else
-                self.estaActivo = false
                 print("foxy esta en la oficina")
-
-                SimClock.esperar(2)
-                if not self.enEjecucion then return end
-
-                self:volverAOrigen()
+                self:atraparJugador(cfg.puertaAtaque)
             end
         end)
     end

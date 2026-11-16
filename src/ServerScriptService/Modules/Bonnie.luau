@@ -17,15 +17,19 @@
       - En AMBOS casos, Bonnie regresa al 'Escenario' y su lista de habitaciones se reinicia.
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local AnimatronicConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AnimatronicConfig"))
 local Animatronico = require(script.Parent.Animatronico)
 local SimClock = require(script.Parent.Core:WaitForChild("SimClock"))
+
+local cfg = AnimatronicConfig.Bonnie
 
 local Bonnie = {}
 Bonnie.__index = Bonnie
 setmetatable(Bonnie, { __index = Animatronico })
 
 function Bonnie.new(contexto: Animatronico.ContextoMultiverso)
-    local self = Animatronico.new("Bonnie", 3, "Escenario", contexto)
+    local self = Animatronico.new(cfg.nombre, cfg.intervalo, cfg.nodoInicial, contexto)
     setmetatable(self, Bonnie)
 
     self.nodosDisponibles = {} :: { string }
@@ -34,11 +38,7 @@ function Bonnie.new(contexto: Animatronico.ContextoMultiverso)
 end
 
 function Bonnie:reiniciarNodos()
-    self.nodosDisponibles = {
-        "Backstage",
-        "Comedor",
-        "PasilloIzquierdo",
-    }
+    self.nodosDisponibles = table.clone(cfg.candidatos)
     print(string.format("  [Bonnie | %s] Candidatos reiniciados: [%s]", self.lineaActual, table.concat(self.nodosDisponibles, ", ")))
 end
 
@@ -114,33 +114,27 @@ function Bonnie:ejecutarAccion()
             self.lineaActual, nodoElegido, table.concat(self.nodosDisponibles, ", "), self.relojEntidad:toString()
         ))
 
-        self:caminarHaciaSalaPacMan("PasilloIzquierdo", 0.32, function()
+        self:caminarHaciaSalaPacMan("PasilloIzquierdo", cfg.velocidadPaso, function()
             self.estaActivo = true
             self.esperandoEnPuerta = true
 
             print(string.format(
-                "  👀 [Bonnie | %s] Llegó a 'PasilloIzquierdo'. Esperando 5 segundos frente a la puerta...",
-                self.lineaActual
+                "  👀 [Bonnie | %s] Llegó a 'PasilloIzquierdo'. Esperando %d segundos frente a la puerta...",
+                self.lineaActual, cfg.esperaEnPasillo
             ))
 
-            SimClock.esperar(5)
+            SimClock.esperar(cfg.esperaEnPasillo)
             if not self.enEjecucion then return end
 
             local estPresente = self.snapshotManager and self.snapshotManager:obtenerEstadoPresente(self.lineaActual)
             local puertaCerrada = estPresente and estPresente.puertaIzquierdaCerrada == true
 
             if not puertaCerrada then
-                -- Puerta abierta: Bonnie se teletransporta a la Oficina y saldrá el mensaje
+                -- Puerta abierta: Bonnie entra a la Oficina y activa la derrota en GameSession
                 self:registrarMovimientoEnSnapshot("Oficina")
                 print("bonnie esta en la oficina")
                 print(string.format("  ⚠️ [Bonnie | %s] ¡bonnie esta en la oficina!", self.lineaActual))
-
-                self.enEjecucion = false
-                self.estaActivo = false
-                local remotos = game:GetService("ReplicatedStorage"):WaitForChild("MultiverseRemotes")
-                remotos.OnDefeat:FireAllClients({ atacante = "Bonnie", linea = self.lineaActual, puerta = "izquierda" })
-                remotos.OnGameStateChanged:FireAllClients("ENDED")
-                print(string.format("[DERROTA] Bonnie atrapó al jugador en %s.", self.lineaActual))
+                self:atraparJugador(cfg.puertaAtaque)
             else
                 -- Puerta cerrada: aviso de que intentó ingresar y no pudo
                 print("intento ingresar por el lado izquierdo y no pudo")
@@ -159,7 +153,7 @@ function Bonnie:ejecutarAccion()
             self.lineaActual, nodoElegido, table.concat(self.nodosDisponibles, ", "), self.relojEntidad:toString()
         ))
 
-        self:caminarHaciaSalaPacMan(nodoElegido, 0.32, function()
+        self:caminarHaciaSalaPacMan(nodoElegido, cfg.velocidadPaso, function()
             self.estaActivo = false
         end)
     end

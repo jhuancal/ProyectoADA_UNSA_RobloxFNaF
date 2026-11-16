@@ -13,17 +13,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GameConfig = require(Shared:WaitForChild("GameConfig"))
+local MapGraph = require(Shared:WaitForChild("MapGraph"))
 local NetworkProtocol = require(Shared:WaitForChild("NetworkProtocol"))
 
 local Modules = ServerScriptService:WaitForChild("Modules")
 local Core = Modules:WaitForChild("Core")
 local Entities = Modules:WaitForChild("Entities")
 
-local MapGraph = require(Modules:WaitForChild("MapGraph"))
 local SnapshotManager = require(Core:WaitForChild("SnapshotManager"))
 local TimelineTree = require(Core:WaitForChild("TimelineTree"))
 local CausalGraph = require(Core:WaitForChild("CausalGraph"))
 local SpaceTimeAStar = require(Core:WaitForChild("SpaceTimeAStar"))
+local Model3DSync = require(Core:WaitForChild("Model3DSync"))
 
 local Bonnie = require(Modules:WaitForChild("Bonnie"))
 local Chica = require(Modules:WaitForChild("Chica"))
@@ -42,6 +44,7 @@ function GameSession.new()
     self.estado = "LOBBY" :: NetworkProtocol.GameStateType
     self.remotos = NetworkProtocol.obtenerRemotos()
     self.hiloPrincipal = nil :: thread?
+    self.conModel3D = nil :: RBXScriptConnection?
 
     -- Inicializar estructuras del motor 5D en estado de espera
     self:_prepararMotor()
@@ -49,8 +52,14 @@ function GameSession.new()
 end
 
 function GameSession:_prepararMotor()
+    if self.conModel3D then
+        self.conModel3D:Disconnect()
+        self.conModel3D = nil
+    end
+
     self.mapa = MapGraph.new()
     self.snapshotManager = SnapshotManager.new()
+    self.conModel3D = Model3DSync.conectar(self.snapshotManager)
     self.timelineTree = TimelineTree.new(self.snapshotManager)
     self.causalGraph = CausalGraph.new(self.timelineTree, self.snapshotManager)
     self.astar = SpaceTimeAStar.new(self.mapa, self.snapshotManager)
@@ -61,6 +70,9 @@ function GameSession:_prepararMotor()
         snapshotManager = self.snapshotManager,
         causalGraph = self.causalGraph,
         astar = self.astar,
+        onAtraparJugador = function(atacante: string, linea: string, puerta: string)
+            self:derrota(atacante, linea, puerta)
+        end,
     }
 
     self.bonnie = Bonnie.new(contexto)
@@ -134,8 +146,8 @@ function GameSession:iniciar(): boolean
         animatronico:iniciarReloj()
     end
 
-    local DURACION_TOTAL = 140
-    local INTERVALO_HORA = 20
+    local DURACION_TOTAL = GameConfig.DURACION_NOCHE
+    local INTERVALO_HORA = GameConfig.INTERVALO_HORA
     local tiempoTranscurrido = 0
 
     self.hiloPrincipal = task.spawn(function()
@@ -146,48 +158,31 @@ function GameSession:iniciar(): boolean
             tiempoTranscurrido += INTERVALO_HORA
             print(string.format("\n================ [ RELOJ GLOBAL: %d / %d SEGUNDOS ] ================", tiempoTranscurrido, DURACION_TOTAL))
 
-            if tiempoTranscurrido == 20 then
-                print(">>> [20s - 1:00 AM] Bonnie aumenta su enojo en +1.")
-                self.bonnie:aumentarEnojo(1)
+            local incrementos = GameConfig.ESCALADO_ENOJO[tiempoTranscurrido]
+            if incrementos then
+                if incrementos.Bonnie then
+                    self.bonnie:aumentarEnojo(incrementos.Bonnie)
+                end
+                if incrementos.Chica then
+                    self.chica:aumentarEnojo(incrementos.Chica)
+                end
+                if incrementos.Foxy then
+                    self.foxy:aumentarEnojo(incrementos.Foxy)
+                end
+            end
 
-            elseif tiempoTranscurrido == 40 then
-                print(">>> [40s - 2:00 AM] Bonnie y Chica aumentan su enojo en +1.")
-                self.bonnie:aumentarEnojo(1)
-                self.chica:aumentarEnojo(1)
-                local escenarioPasado = self.timelineTree:bifurcarLinea("L0", 15, "Salto táctico de Guardia_Beta al pasado")
+            local evBeta = GameConfig.EVENTO_GUARDIA_BETA
+            if tiempoTranscurrido == evBeta.segundo then
+                local escenarioPasado = self.timelineTree:bifurcarLinea(evBeta.lineaOrigen, evBeta.tiempoSalto, evBeta.motivo)
                 self.guardiaBeta:viajarAEscenario(escenarioPasado.id)
-                self.guardiaBeta:colocarObjetoEnPasadoParaAlterarFuturo("SenueloSonoro", "Comedor", 15)
-
-            elseif tiempoTranscurrido == 60 then
-                print(">>> [60s - 3:00 AM] Bonnie, Chica y Foxy aumentan su enojo en +1.")
-                self.bonnie:aumentarEnojo(1)
-                self.chica:aumentarEnojo(1)
-                self.foxy:aumentarEnojo(1)
-
-            elseif tiempoTranscurrido == 80 then
-                print(">>> [80s - 4:00 AM] Bonnie aumenta su enojo en +2.")
-                self.bonnie:aumentarEnojo(2)
-
-            elseif tiempoTranscurrido == 100 then
-                print(">>> [100s - 5:00 AM] Bonnie y Chica aumentan su enojo en +2.")
-                self.bonnie:aumentarEnojo(2)
-                self.chica:aumentarEnojo(2)
-
-            elseif tiempoTranscurrido == 120 then
-                print(">>> [120s - 6:00 AM PREVIA] ¡Los 3 animatrónicos aumentan su enojo en +2!")
-                self.bonnie:aumentarEnojo(2)
-                self.chica:aumentarEnojo(2)
-                self.foxy:aumentarEnojo(2)
+                self.guardiaBeta:colocarObjetoEnPasadoParaAlterarFuturo(evBeta.objeto, evBeta.sala, evBeta.bonoEnergia)
             end
 
             self:_imprimirMatrizMultiverso()
         end
 
         if self.estado == "PLAYING" then
-            print("\n================================================================================")
-            print("concluyo la noche.")
-            print("================================================================================")
-            self:detener()
+            self:victoria()
         end
     end)
 
@@ -224,6 +219,25 @@ function GameSession:alternarPuerta(lado: "Izquierda" | "Derecha", cerrada: bool
     return true
 end
 
+function GameSession:derrota(atacante: string, linea: string, puerta: string)
+    if self.estado ~= "PLAYING" then return end
+    print(string.format("[DERROTA] %s atrapó al jugador en %s (puerta %s).", atacante, linea, puerta))
+    self:detener()
+    self.remotos.OnDefeat:FireAllClients({
+        atacante = atacante,
+        linea = linea,
+        puerta = puerta,
+    })
+end
+
+function GameSession:victoria()
+    if self.estado ~= "PLAYING" then return end
+    print("\n================================================================================")
+    print("concluyo la noche.")
+    print("================================================================================")
+    self:detener()
+end
+
 function GameSession:detener()
     if self.estado == "ENDED" then return end
     self.estado = "ENDED"
@@ -231,6 +245,11 @@ function GameSession:detener()
     if self.hiloPrincipal then
         task.cancel(self.hiloPrincipal)
         self.hiloPrincipal = nil
+    end
+
+    if self.conModel3D then
+        self.conModel3D:Disconnect()
+        self.conModel3D = nil
     end
 
     for _, animatronico in ipairs(self.animatronicos) do

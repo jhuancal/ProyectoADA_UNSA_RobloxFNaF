@@ -11,6 +11,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local RoomSpaceConfig = require(Shared:WaitForChild("RoomSpaceConfig"))
 
 export type ObjetoEscenario = {
@@ -108,8 +109,8 @@ function SnapshotManager:inicializarLineaRaiz(lineaId: string, relojStr: string)
     local estadoInicial: WorldState = {
         lineaId = lineaId,
         tiempo = 0,
-        energia = 100,
-        tasaDrenajeEnergia = 1,
+        energia = GameConfig.ENERGIA_INICIAL,
+        tasaDrenajeEnergia = GameConfig.TASA_DRENAJE_INICIAL,
         puertaIzquierdaCerrada = false,
         puertaDerechaCerrada = false,
         posicionesAnimatronicos = {
@@ -173,7 +174,7 @@ function SnapshotManager:_aplicarDelta(estado: WorldState, delta: DeltaMutation)
             gy = gy,
         }
     elseif delta.tipo == "CAMBIAR_ENERGIA" then
-        estado.energia = math.clamp(delta.valorNuevo, 0, 100)
+        estado.energia = math.clamp(delta.valorNuevo, 0, GameConfig.ENERGIA_INICIAL)
         if estado.energia <= 0 then
             estado.puertaIzquierdaCerrada = false
             estado.puertaDerechaCerrada = false

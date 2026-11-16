@@ -12,6 +12,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local VectorClock = require(Shared:WaitForChild("VectorClock"))
 local SimClock = require(script.Parent:WaitForChild("SimClock"))
 
@@ -129,23 +130,11 @@ function TimelineTree:_iniciarSubrutinaEscenario(nodo: TimelineNode)
                 if estado.puertaIzquierdaCerrada then puertasCerradas += 1 end
                 if estado.puertaDerechaCerrada then puertasCerradas += 1 end
 
-                local debeDrenar = false
-                local cantidadDrenaje = 0
-
-                if puertasCerradas == 2 then
-                    debeDrenar = true
-                    cantidadDrenaje = 1 + (if estado.tasaDrenajeEnergia > 1 then 1 else 0)
-                elseif puertasCerradas == 1 then
-                    if nodo.tiempoActual % 2 == 0 then
-                        debeDrenar = true
-                        cantidadDrenaje = 1 + (if estado.tasaDrenajeEnergia > 1 then 1 else 0)
-                    end
-                else
-                    if nodo.tiempoActual % 5 == 0 then
-                        debeDrenar = true
-                        cantidadDrenaje = estado.tasaDrenajeEnergia
-                    end
-                end
+                local intervaloDrenaje = GameConfig.INTERVALO_DRENAJE_POR_PUERTAS[puertasCerradas] or 5
+                local debeDrenar = (nodo.tiempoActual % intervaloDrenaje) == 0
+                local cantidadDrenaje = if puertasCerradas > 0
+                    then (1 + (if estado.tasaDrenajeEnergia > 1 then 1 else 0))
+                    else estado.tasaDrenajeEnergia
 
                 if debeDrenar and estado.energia > 0 then
                     local nuevaEnergia = math.max(0, estado.energia - cantidadDrenaje)

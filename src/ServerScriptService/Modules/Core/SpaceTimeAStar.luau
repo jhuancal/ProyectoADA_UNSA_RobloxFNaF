@@ -8,6 +8,10 @@
     Complejidad Temporal: O((|V| + |E|) log |V|) gracias al Min-Heap binario.
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GameConfig = require(Shared:WaitForChild("GameConfig"))
+
 local SpaceTimeAStar = {}
 SpaceTimeAStar.__index = SpaceTimeAStar
 
@@ -111,15 +115,15 @@ function SpaceTimeAStar:calcularRutaOptima(
             return actual.camino, actual.g
         end
 
-        for _, vecino in ipairs(self.mapa:obtenerVecinos(actual.nodoEspacial, estadoEscenario)) do
+        for _, vecino in ipairs(self.mapa:obtenerVecinosSinFiltro(actual.nodoEspacial)) do
             local costoArista = 1
 
             -- Si intenta entrar a la Oficina pero la puerta correspondiente está cerrada, penalizar con costo alto
             if vecino == "Oficina" and estadoEscenario then
                 if actual.nodoEspacial == "PasilloIzquierdo" and estadoEscenario.puertaIzquierdaCerrada then
-                    costoArista = 50 -- Puerta izquierda cerrada: fuerza a A* a rodear o bloquea
+                    costoArista = GameConfig.PENALIZACION_PUERTA_CERRADA_ASTAR
                 elseif actual.nodoEspacial == "PasilloDerecho" and estadoEscenario.puertaDerechaCerrada then
-                    costoArista = 50 -- Puerta derecha cerrada: fuerza a A* a rodear o bloquea
+                    costoArista = GameConfig.PENALIZACION_PUERTA_CERRADA_ASTAR
                 end
             end
 
@@ -127,7 +131,7 @@ function SpaceTimeAStar:calcularRutaOptima(
             if estadoEscenario and estadoEscenario.objetos["SenueloSonoro"] then
                 local senuelo = estadoEscenario.objetos["SenueloSonoro"]
                 if senuelo.activo and senuelo.nodo == vecino then
-                    costoArista = 0.2
+                    costoArista = GameConfig.BONO_SENUELO_ASTAR
                 end
             end
 
